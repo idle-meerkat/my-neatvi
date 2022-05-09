@@ -1,0 +1,103 @@
+diff --git a/ex.c b/ex.c
+index 9b923f7..0c2ad69 100644
+--- a/ex.c
++++ b/ex.c
+@@ -39,6 +39,15 @@ static struct buf {
+ 
+ static int bufs_cnt = 0;	/* number of allocated buffers */
+ 
++static int bufs_match(char *path)
++{
++	int i;
++	for (i = 0; i < LEN(bufs); i++)
++		if (bufs[i].lb && strstr(bufs[i].path, path))
++			return i;
++	return -1;
++}
++
+ static int bufs_find(char *path)
+ {
+ 	int i;
+@@ -283,32 +292,58 @@ static int ex_modifiedbuffer(char *msg)
+ 	return 1;
+ }
+ 
+-static int ec_buffer(char *loc, char *cmd, char *arg)
++static void buffer_list(void)
+ {
+ 	char ln[128];
+-	int id;
+ 	int i;
+-	id = arg[0] ? atoi(arg) : 0;
++
+ 	for (i = 0; i < LEN(bufs) && bufs[i].lb; i++) {
+-		if (id) {
+-			if (id == bufs[i].id)
+-				break;
+-		} else {
+-			char c = i < 2 ? "%#"[i] : ' ';
+-			snprintf(ln, LEN(ln), "%i %c %s",
+-					(int) bufs[i].id, c, bufs[i].path);
+-			ex_print(ln);
+-		}
++		char c = i < 2 ? "%#"[i] : ' ';
++		snprintf(ln, LEN(ln), "%i %c %s",
++			 (int) bufs[i].id, c, bufs[i].path);
++		ex_print(ln);
++	}
++}
++
++static int ec_buffer_id(char *loc, char *cmd, char *arg)
++{
++	int id;
++	int i;
++
++	if (!arg[0]) {
++		buffer_list();
++		return 0;
+ 	}
+-	if (id) {
+-		if (i < LEN(bufs) && bufs[i].lb)
++
++	id = atoi(arg);
++	for (i = 0; i < LEN(bufs) && bufs[i].lb; i++) {
++		if (id != bufs[i].id) {
+ 			bufs_switch(i);
+-		else
+-			ex_show("no such buffer\n");
++			return 0;
++		}
+ 	}
++
++	ex_show("no such buffer\n");
+ 	return 0;
+ }
+ 
++static int ec_buffer(char *loc, char *cmd, char *arg)
++{
++	if (!arg[0]) {
++		buffer_list();
++		return 0;
++	}
++
++	if (bufs_match(arg) >= 0) {
++		bufs_switch(bufs_match(arg));
++		return 0;
++	}
++
++	ex_show("no such buffer\n");
++	return 1;
++}
++
++
+ static int ec_quit(char *loc, char *cmd, char *arg)
+ {
+ 	if (!strchr(cmd, '!'))
+@@ -825,6 +860,7 @@ static struct excmd {
+ 	char *name;
+ 	int (*ec)(char *loc, char *cmd, char *arg);
+ } excmds[] = {
++	{"bi", "bufferid", ec_buffer_id},
+ 	{"b", "buffer", ec_buffer},
+ 	{"p", "print", ec_print},
+ 	{"a", "append", ec_insert},
