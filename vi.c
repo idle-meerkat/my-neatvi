@@ -1303,6 +1303,8 @@ static void vi(void)
 				k = vi_read();
 				if (k == 'Z')
 					ex_command("x");
+				else if (k == 'Q')
+					ex_command("q!");
 				break;
 			case '~':
 				vi_back(' ');
