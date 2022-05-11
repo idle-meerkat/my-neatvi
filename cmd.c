@@ -52,21 +52,23 @@ static int cmd_make(char **argv, int *ifd, int *ofd)
 }
 
 /* execute a command; process input if iproc and process output if oproc */
-char *cmd_pipe(char *cmd, char *ibuf, int iproc, int oproc)
+char *cmd_pipe(char *cmd, char *ibuf, int oproc)
 {
+	int pid;
 	char *argv[] = {"/bin/sh", "-c", cmd, NULL};
-	struct pollfd fds[3];
+	struct pollfd fds[2];
 	struct sbuf *sb = NULL;
 	char buf[512];
 	int ifd = -1, ofd = -1;
-	int slen = iproc ? strlen(ibuf) : 0;
 	int nw = 0;
-	int pid = cmd_make(argv, iproc ? &ifd : NULL, oproc ? &ofd : NULL);
+	int slen = ibuf ? strlen(ibuf) : 0;
+
+	pid = cmd_make(argv, slen ? &ifd : 0, oproc ? &ofd : 0);
 	if (pid <= 0)
 		return NULL;
 	if (oproc)
 		sb = sbuf_make();
-	if (!iproc) {
+	if (!slen) {
 		signal(SIGINT, SIG_IGN);
 		term_done();
 	}
@@ -75,9 +77,7 @@ char *cmd_pipe(char *cmd, char *ibuf, int iproc, int oproc)
 	fds[0].events = POLLIN;
 	fds[1].fd = ifd;
 	fds[1].events = POLLOUT;
-	fds[2].fd = iproc ? 0 : -1;
-	fds[2].events = POLLIN;
-	while ((fds[0].fd >= 0 || fds[1].fd >= 0) && poll(fds, 3, 200) >= 0) {
+	while ((fds[0].fd >= 0 || fds[1].fd >= 0) && poll(fds, 2, 200) >= 0) {
 		if (fds[0].revents & POLLIN) {
 			int ret = read(fds[0].fd, buf, sizeof(buf));
 			if (ret > 0)
@@ -98,13 +98,6 @@ char *cmd_pipe(char *cmd, char *ibuf, int iproc, int oproc)
 			}
 			continue;
 		}
-		if (fds[2].revents & POLLIN) {
-			int ret = read(fds[2].fd, buf, sizeof(buf));
-			int i;
-			for (i = 0; i < ret; i++)
-				if ((unsigned char) buf[i] == TK_CTL('c'))
-					kill(pid, SIGINT);
-		}
 		if (fds[0].revents & (POLLERR | POLLHUP | POLLNVAL)) {
 			close(fds[0].fd);
 			fds[0].fd = -1;
@@ -113,13 +106,11 @@ char *cmd_pipe(char *cmd, char *ibuf, int iproc, int oproc)
 			close(fds[1].fd);
 			fds[1].fd = -1;
 		}
-		if (fds[2].revents & (POLLERR | POLLHUP | POLLNVAL))
-			fds[2].fd = -1;
 	}
 	close(fds[0].fd);
 	close(fds[1].fd);
 	waitpid(pid, NULL, 0);
-	if (!iproc) {
+	if (!slen) {
 		term_init();
 		signal(SIGINT, SIG_DFL);
 	}
@@ -130,6 +121,6 @@ char *cmd_pipe(char *cmd, char *ibuf, int iproc, int oproc)
 
 int cmd_exec(char *cmd)
 {
-	cmd_pipe(cmd, NULL, 0, 0);
+	cmd_pipe(cmd, NULL, 0);
 	return 0;
 }
