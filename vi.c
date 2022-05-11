@@ -539,13 +539,14 @@ static int vi_motion(int *row, int *off)
 		if (vi_search(mv, cnt, row, off))
 			return -1;
 		break;
-	case TK_CTL('a'):
+	case '*':
+	case '#':
 		if (!(cs = vi_curword(xb, *row, *off)))
 			return -1;
 		ex_kwdset(cs, +1);
 		vi_soset = 0;
 		free(cs);
-		if (vi_search('n', cnt, row, off))
+		if (vi_search(mv == '*' ? 'n' : 'N', cnt, row, off))
 			return -1;
 		break;
 	case ' ':
