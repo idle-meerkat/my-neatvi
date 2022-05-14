@@ -14,7 +14,7 @@ int xvis;			/* visual mode */
 int xai = 1;			/* autoindent option */
 int xic = 1;			/* ignorecase option */
 int xaw;			/* autowrite option */
-int xhl = 1;			/* syntax highlight option */
+int xhl;			/* syntax highlight option */
 int xhll;			/* highlight current line */
 int xled = 1;			/* use the line editor */
 int xtd = +1;			/* current text direction */
